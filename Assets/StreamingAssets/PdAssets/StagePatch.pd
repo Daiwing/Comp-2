@@ -22,7 +22,7 @@
 #X obj 247 265 100;
 #X obj 298 255 30;
 #X obj 217 262 80;
-#X obj 203 145 tri_saw~;
+#X obj 203 145 osc~;
 #X connect 1 0 2 0;
 #X connect 1 0 3 0;
 #X connect 1 1 7 0;
