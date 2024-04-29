@@ -15,6 +15,7 @@ public class ArpScript : MonoBehaviour
     public int beat = 150;
     [SerializeField]
     public int chordSpeed = 3000;
+    int selectChord;
     // Start is called before the first frame update
     void Start()
     {
@@ -22,6 +23,7 @@ public class ArpScript : MonoBehaviour
         chordIndex = 0;
         trigRamp = 0;
         chordRamp = 0;
+
     }
 
     // Update is called once per frame
@@ -40,6 +42,13 @@ public class ArpScript : MonoBehaviour
 
         if (trig)
         {
+            if (newChord)
+            {
+                makeNewChord();
+                chordIndex = 0;
+                //Debug.Log("new chord");
+            }
+
             if (chordIndex < chord.Length)
             {
                 int pitch = PitchArray[chordIndex];
@@ -48,12 +57,19 @@ public class ArpScript : MonoBehaviour
                 chordIndex++;
             }
 
-            if (newChord)
+            if (transform.localScale.x != selectChord)
             {
-                makeNewChord();
-                chordIndex = 0;
-                //Debug.Log("new chord");
+                if (transform.localScale.x < selectChord)
+                {
+                    transform.localScale = new Vector3(transform.localScale.x + 0.2f, transform.localScale.y + 0.2f, transform.localScale.z + 0.2f);
+                }
+                else if (transform.localScale.x > selectChord)
+                {
+                    transform.localScale = new Vector3(transform.localScale.x - 0.2f, transform.localScale.y - 0.2f, transform.localScale.z - 0.2f);
+                }
             }
+
+            
         }
 
 
@@ -71,7 +87,7 @@ public class ArpScript : MonoBehaviour
     void makeNewChord()
     {
 
-        int selectChord = Mathf.RoundToInt(Random.value * 6); // * num of chords - 1
+        selectChord = Mathf.RoundToInt(Random.value * 6); // * num of chords - 1
         
         switch(selectChord) // hardcoded chords
         {
