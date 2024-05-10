@@ -2,77 +2,137 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class ArpScript : MonoBehaviour
 {
-    public LibPdInstance patch;
+    public LibPdInstance arpPatch;
     int[] chord;
+    int[] scale;
     float trigRamp;
     float chordRamp;
+    public bool trig;
     int[] PitchArray;
     int chordIndex;
     int dMs;
     [SerializeField]
-    public int beat = 150;
+    public int beat = 250;
     [SerializeField]
-    public int chordSpeed = 3000;
+    public int chordSpeed = 6000;
     int selectChord;
+    bool ascendChord;
+    float filterLFO;
+    bool ascendLFO;
+    [SerializeField]
+    GameObject obj;
+    Material outerMat;
+    Color lerpedColor;
+    float visController; // also updated in makeNewChord()
     // Start is called before the first frame update
     void Start()
     {
+        scale = new int[] { 2, 2, 1, 2, 2, 2};
+        chord = new int[4];
+
         makeNewChord();
         chordIndex = 0;
         trigRamp = 0;
         chordRamp = 0;
 
+        ascendChord = true;
+
+        
+        PitchArray = ControlFunctions.PitchArray(5, new Vector2Int(48, 72), scale);
+
+        filterLFO = 200f;
+        ascendLFO = true;
+
+        lerpedColor = Color.yellow;
+
+        outerMat = obj.GetComponent<Renderer>().material;
+        outerMat.SetFloat("_ElectricScrollingSpeed", visController * 0.1f);
+        outerMat.SetFloat("_SurfaceMovementSpeed", visController * 0.1f);
+        outerMat.SetFloat("_DistortionSpeed", visController * 0.1f);
     }
 
     // Update is called once per frame
     void Update()
     {
-        
-        
-        
 
         dMs = Mathf.RoundToInt(Time.deltaTime * 1000);
-        bool trig = trigRamp > ((trigRamp + dMs) % beat);
+        trig = trigRamp > ((trigRamp + dMs) % beat);
         trigRamp = (trigRamp + dMs) % (beat);
         bool newChord = chordRamp > ((chordRamp + dMs) % chordSpeed);
         chordRamp = (chordRamp + dMs) % chordSpeed;
-        
 
         if (trig)
         {
+
             if (newChord)
             {
                 makeNewChord();
                 chordIndex = 0;
                 //Debug.Log("new chord");
+
+
+                //Debug.Log("visController: " + visController);
+                outerMat.SetFloat("_ElectricScrollingSpeed", visController);
+                outerMat.SetFloat("_SurfaceMovementSpeed", visController);
+                outerMat.SetFloat("_DistortionSpeed", visController);
+                
             }
 
-            if (chordIndex < chord.Length)
+            if (chordIndex == 0)
             {
-                int pitch = PitchArray[chordIndex];
-                patch.SendMidiNoteOn(0, pitch, 80);
-                //Debug.Log("pitch: " + pitch);
-                chordIndex++;
-            }
-
-            if (transform.localScale.x != selectChord)
+                ascendChord = true;
+            } 
+            if (chordIndex == 3)
             {
-                if (transform.localScale.x < selectChord)
-                {
-                    transform.localScale = new Vector3(transform.localScale.x + 0.2f, transform.localScale.y + 0.2f, transform.localScale.z + 0.2f);
-                }
-                else if (transform.localScale.x > selectChord)
-                {
-                    transform.localScale = new Vector3(transform.localScale.x - 0.2f, transform.localScale.y - 0.2f, transform.localScale.z - 0.2f);
-                }
+                ascendChord = false;
             }
 
             
+
+            int pitch = PitchArray[chord[chordIndex]];
+            arpPatch.SendMidiNoteOn(0, pitch, 80);
+
+            lerpedColor = Color.Lerp(Color.yellow, Color.magenta, (float)(chordIndex / 3f));
+            outerMat.SetColor("_BorderColor", lerpedColor);
+
+            if (ascendChord)
+            {
+                chordIndex++;
+            } else
+            {
+                chordIndex--;
+            }
+
+            if (ascendLFO)
+            {
+                filterLFO += 50f;
+            }
+            else
+            {
+                filterLFO -= 50f;
+            }
+
+            if (filterLFO >= 3500)
+            {
+                ascendLFO = false;
+            }
+            if (filterLFO <= 200)
+            {
+                ascendLFO = true;
+            }
+
+            arpPatch.SendFloat("filterCutoff", filterLFO);
+
+
+            // TODO : VISUAL
+
+            
+
+            
         }
-
-
         // debug block
         /*
         Debug.Log("trig: " + trig);
@@ -80,81 +140,36 @@ public class ArpScript : MonoBehaviour
         Debug.Log("ramp: " + ramp);
         //Debug.Log("");
         */
-
     }
 
 
     void makeNewChord()
     {
-
-        selectChord = Mathf.RoundToInt(Random.value * 6); // * num of chords - 1
-        
-        switch(selectChord) // hardcoded chords
+        chord[3] = -1;
+        int i = 0;
+        while (chord[3] == -1)
         {
-            case 0:
-                chord = new int[] {4, 3, 5}; // major triad
-                break;
-            case 1:
-                chord = new int[] {3, 4, 5 }; // minor triad
-                break;
-            case 2:
-                chord = new int[] {4, 3, 4, 1 }; // major 7
-                break;
-            case 3:
-                chord = new int[] {3, 4, 3, 2 }; // minor 7
-                break;
-            case 4:
-                chord = new int[] {4, 3, 3, 2 }; // dom 7
-                break;
-            case 5:
-                chord = new int[] {4, 3, 2, 3 }; // M add 6
-                break;
-            case 6:
-                chord = new int[] {4, 3, 1, 4 }; // M add b6
-                break;
-            default:
-                chord = new int[] { 4, 3, 5 }; // major triad
-                break;
+
+            selectChord = Mathf.RoundToInt(Random.value * 2) + 1;
+            
+            if (i > 0)
+            {
+                chord[i] = selectChord + chord[i - 1];
+            }
+            else
+            {
+                chord[i] = selectChord;
+            }
+            //Debug.Log(chord[i]);
+
+            i++;
         }
 
-        //Debug.Log("Select: " + selectChord);
-
-
-        int tonic;
-        int selectTonic = Mathf.RoundToInt(Random.value * 7);
-
-        switch(selectTonic) // normalize random to C minor/harmonic minor scale
+        visController = ((chord[0] + chord[1] + chord[2] + chord[3])/8f - 2.5f) * 2f;
+        if (visController == 0)
         {
-            case 0:
-                tonic = 0;
-                break;
-            case 1:
-                tonic = 2;
-                break;
-            case 2:
-                tonic = 3;
-                break;
-            case 3:
-                tonic = 5;
-                break;
-            case 4:
-                tonic = 7;
-                break;
-            case 5:
-                tonic = 8;
-                break;
-            case 6:
-                tonic = 10;
-                break;
-            case 7:
-                tonic = 11;
-                break;
-            default:
-                tonic = 0;
-                break;
+            visController = 0.1f;
         }
 
-
-        PitchArray = ControlFunctions.PitchArray(tonic, new Vector2Int(48, 72), chord);
     }
 }
